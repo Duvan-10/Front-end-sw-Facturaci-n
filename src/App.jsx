@@ -1,11 +1,10 @@
-import Login from './components/Login';
+// src/App.jsx
+import React from "react";
+import Login from "./components/Login";
 
 function App() {
-  return (
-    <div>
-      <Login />
-    </div>
-  );
+  return <Login />;
 }
 
 export default App;
+

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './Login.css';
-import logo from '../assets/logo.png'; // Ajusta la ruta si es necesario
+import logo from '../assets/logo.png';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -17,7 +17,6 @@ function Login() {
     <div className="login-container">
       <img src={logo} alt="PFEPS Logo" className="logo-img" />
       <h1 className="logo-text">PFEPS</h1>
-      <h2 className="subtitle">Tu Facturador</h2>
       <p className="description">Accede a tu cuenta</p>
       <p className="tagline">Software de Facturación Electrónica</p>
 
@@ -60,7 +59,7 @@ function Login() {
               checked={rememberMe}
               onChange={() => setRememberMe(!rememberMe)}
             />
-            Recordarme
+            Recordarme 
           </label>
           <a href="#" className="forgot-link">Olvidé mi contraseña</a>
         </div>
@@ -73,4 +72,3 @@ function Login() {
 }
 
 export default Login;
-

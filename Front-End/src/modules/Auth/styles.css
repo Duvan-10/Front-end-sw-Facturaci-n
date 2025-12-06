@@ -105,7 +105,8 @@ label {
 
 /* Estilo visual de las cajas de texto */
 input[type="email"],
-input[type="password"] {
+input[type="password"]
+ {
   width: 100%;
   padding: 12px 14px;
   border-radius: 10px;

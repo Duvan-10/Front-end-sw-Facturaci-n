@@ -1,41 +1,246 @@
-// Front-end/src/modules/Auth/Login.jsx
+// ruta: Front-end-sw-Facturacion/Front-end/src/modules/Auth/Login.jsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './styles.css'; 
-import logo from '../../assets/logo.png'; // 
+import logo from '../../assets/logo.png'; 
 
 function Login() {
+  // 1. Estados de Formulario y Sesión
+  const [name, setName] = useState(''); 
+  const [identification, setIdentification] = useState(''); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Estados de control de la UI/Sesión
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(''); 
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Gestión de la Sesión
+  const [user, setUser] = useState(null); 
+  const [token, setToken] = useState(localStorage.getItem('token')); 
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(prev => !prev);
+  // -------------------------------------------------------------------
+  // Lógica de Gestión de Sesión (usando localStorage)
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    // Si hay un token guardado, recuperamos los datos del usuario para mostrar la vista de "logueado"
+    if (token) {
+        try {
+            const storedUser = JSON.parse(localStorage.getItem('user'));
+            setUser(storedUser); 
+        } catch (e) {
+            // Manejo de error si el JSON está mal
+            handleLogout(); 
+        }
+    } else {
+        setUser(null);
+    }
+  }, [token]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    setStatusMessage('Sesión cerrada correctamente.');
+  };
+  
+  // Alternar entre Login y Registro
+  const toggleMode = (mode) => {
+    setIsRegistering(mode);
+    setStatusMessage('');
+    // Limpiar campos al alternar
+    setName('');
+    setIdentification('');
+    setEmail('');
+    setPassword('');
   };
 
-  const handleSubmit = (e) => {
+  // -------------------------------------------------------------------
+  // FUNCIÓN DE REGISTRO
+  // -------------------------------------------------------------------
+  const handleRegister = async (e) => {
     e.preventDefault();
-    console.log({ email, password, rememberMe });
-    // Aquí iría la lógica de autenticación (ej. llamada a API)
+    setIsLoading(true);
+    setStatusMessage('');
+
+    if (!name || !identification || !email || !password) {
+        setStatusMessage('Todos los campos son obligatorios.');
+        setIsLoading(false);
+        return;
+    }
+    
+    const userData = { name, identification, email, password };
+
+    try {
+        const response = await fetch('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            setStatusMessage(`🎉 Registro exitoso. ¡Ya puedes iniciar sesión!`);
+            toggleMode(false); // Cambiar a vista de Login
+        } else {
+            // Mensaje de error (ej: cédula o email duplicado)
+            setStatusMessage(`❌ Error: ${data.message || 'Error al registrar.'}`);
+        }
+
+    } catch (error) {
+        setStatusMessage('⚠️ Error de conexión con el servidor. Asegúrate de que Express esté corriendo.');
+    } finally {
+        setIsLoading(false);
+    }
   };
 
-  return (
-    // 1. Contenedor principal para centrar (Clase .auth del CSS)
-    <main className="auth">
-      {/* 2. Tarjeta del formulario (Clase .auth-card del CSS) */}
-      <section className="auth-card" aria-labelledby="login-title">
+  // -------------------------------------------------------------------
+  // FUNCIÓN DE LOGIN
+  // -------------------------------------------------------------------
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setStatusMessage('');
 
-        {/* 3. Encabezado (Clase .auth-header del CSS) */}
+    if (!email || !password) {
+        setStatusMessage('Ingresa correo y contraseña.');
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Guardar token y datos del usuario
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setToken(data.token);
+            setUser(data.user);
+            setStatusMessage(`🎉 Login Exitoso. Redirigiendo...`);
+            // Nota: Aquí usarías 'useNavigate' para ir al dashboard.
+        } else {
+            setStatusMessage(`❌ Login Fallido: ${data.message || 'Credenciales incorrectas.'}`);
+        }
+        
+    } catch (error) {
+        setStatusMessage('⚠️ Error de conexión con el servidor. Asegúrate de que Express esté corriendo.');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+
+  const handleSubmit = isRegistering ? handleRegister : handleLogin;
+  
+  // Textos dinámicos
+  const titleText = isRegistering ? 'Crear una nueva cuenta' : 'Accede a tu cuenta';
+  const buttonText = isRegistering ? (isLoading ? 'Guardando...' : 'Completar Registro') : (isLoading ? 'Iniciando...' : 'Iniciar sesión');
+
+
+  // -------------------------------------------------------------------
+  // VISTA AUTENTICADA (Logout)
+  // -------------------------------------------------------------------
+  if (user) {
+    return (
+        <main className="auth">
+            <section className="auth-card" aria-labelledby="auth-title">
+                <header className="auth-header">
+                    <img src={logo} alt="PFEPS Logo" className="brand-logo" /> 
+                    <h1 id="auth-title">¡Bienvenido!</h1>
+                    <p className="subtitle">Sesión activa para: **{user.name}**</p>
+                </header>
+                
+                <div className="form-actions" style={{marginTop: '40px'}}>
+                    <p className="status" style={{color: 'var(--primary)'}}>
+                        {statusMessage || 'Ahora puedes acceder a las funcionalidades del sistema.'}
+                    </p>
+                    {/* Placeholder para la navegación principal */}
+                    <button 
+                        type="button" 
+                        className="btn primary" 
+                        onClick={() => alert('¡Ir al Dashboard!')}
+                    >
+                        Ir al Dashboard
+                    </button>
+                    {/* Botón de Logout */}
+                    <button 
+                        type="button" 
+                        className="btn" 
+                        onClick={handleLogout}
+                        // Usamos estilos inline para el botón secundario
+                        style={{marginTop: '10px', background: 'var(--muted)', color: 'var(--bg)'}}
+                    >
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </section>
+        </main>
+    );
+  }
+
+
+  // -------------------------------------------------------------------
+  // VISTA DE FORMULARIO (Login/Registro)
+  // -------------------------------------------------------------------
+  return (
+    <main className="auth">
+      <section className="auth-card" aria-labelledby="auth-title">
+
         <header className="auth-header">
           <img src={logo} alt="PFEPS Logo" className="brand-logo" /> 
-          <h1 id="login-title">PFEPS</h1>
-          <p className="subtitle">Accede a tu cuenta</p>
+          <h1 id="auth-title">PFEPS</h1>
+          <p className="subtitle">{titleText}</p>
           <p className="tagline">Software de Facturación Electrónica</p>
         </header>
 
         <form onSubmit={handleSubmit}>
-          {/* Campo de Email (Clase .field del CSS) */}
+          
+          {/* Campo de Nombre (Solo en Registro) */}
+          {isRegistering && (
+            <div className="field">
+                <label htmlFor="name">Nombre Completo</label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Ej. Juan Pérez"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+            </div>
+          )}
+
+          {/* Campo de Identificación (Solo en Registro) */}
+          {isRegistering && (
+            <div className="field">
+                <label htmlFor="identification">Identificación (Cédula)</label>
+                <input
+                    type="text"
+                    id="identification"
+                    name="identification"
+                    placeholder="Tu número de cédula"
+                    value={identification}
+                    onChange={(e) => setIdentification(e.target.value)}
+                    required
+                />
+                <small className="help">Este campo es obligatorio y único.</small>
+            </div>
+          )}
+
+          {/* Campo de Email */}
           <div className="field">
             <label htmlFor="email">Correo electrónico</label>
             <input
@@ -47,17 +252,16 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            {/* Opcional: <small className="help">...</small> o <p className="error">...</p> si los necesitas */}
           </div>
 
-          {/* Campo de Contraseña (Clase .field y .label-row del CSS) */}
+          {/* Campo de Contraseña */}
           <div className="field">
             <div className="label-row">
               <label htmlFor="password">Contraseña</label>
               <button
                 type="button"
-                className="link-button" // Usamos .link-button para el estilo "Mostrar"
-                onClick={togglePasswordVisibility}
+                className="link-button" 
+                onClick={() => setShowPassword(prev => !prev)}
                 aria-controls="password"
               >
                 {showPassword ? 'Ocultar' : 'Mostrar'}
@@ -74,33 +278,42 @@ function Login() {
             />
           </div>
 
-          {/* Fila de Checkbox y Olvidé Contraseña (Clase .form-row del CSS) */}
-          <div className="form-row">
-            <label className="checkbox"> {/* Clase .checkbox para el contenedor de Recordarme */}
-              <input
-                type="checkbox"
-                name="remember"
-                checked={rememberMe}
-                onChange={() => setRememberMe(!rememberMe)}
-              />
-              <span>Recordarme</span>
-            </label>
-            <a href="#" className="link">Olvidé mi contraseña</a> {/* Clase .link para el enlace */}
-          </div>
+          {/* Fila de Checkbox y Olvidé Contraseña (Solo en Login) */}
+          {!isRegistering && (
+            <div className="form-row">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  checked={rememberMe}
+                  onChange={() => setRememberMe(!rememberMe)}
+                />
+                <span>Recordarme</span>
+              </label>
+              <a href="#" className="link">Olvidé mi contraseña</a>
+            </div>
+          )}
 
           {/* Acciones del Formulario */}
           <div className="form-actions">
-            {/* Botón Iniciar Sesión (Clase .btn .primary del CSS) */}
-            <button type="submit" className="btn primary">Iniciar sesión</button>
+            <button type="submit" className="btn primary" disabled={isLoading}>
+              {buttonText}
+            </button>
           </div>
           
-          {/* Enlace Registrarse (Clase .register-wrapper del CSS) */}
+          {/* Enlace para alternar entre Login y Register */}
           <div className="register-wrapper">
-            {/* Usamos un <a> con la clase .register-link para el estilo destacado */}
-            <a href="#" className="register-link">Registrarse</a>
+            <p className="subtitle">
+              {isRegistering ? (
+                <>¿Ya tienes una cuenta? <button type="button" className="link" onClick={() => toggleMode(false)}>Iniciar sesión</button></>
+              ) : (
+                <>¿No tienes una cuenta? <button type="button" className="link register-link" onClick={() => toggleMode(true)}>Regístrate</button></>
+              )}
+            </p>
           </div>
 
-          <div className="status" role="status" aria-live="polite"></div>
+          {/* Mensaje de estado */}
+          {statusMessage && <p className="status" role="status" aria-live="polite">{statusMessage}</p>}
         </form>
 
       </section>

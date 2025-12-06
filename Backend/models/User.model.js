@@ -1,34 +1,42 @@
-// Backend/models/user.model.js
+// ruta: Backend/models/user.model.js
 
-// Importación local, ya que db.js está en la misma carpeta
-import pool from './db.js'; 
+import pool from './db.js';
+import bcrypt from 'bcryptjs';
 
-// -------------------------------------------------------------------
-// 1. Buscar usuario por Email (usada para Login y para verificar Registro)
-// -------------------------------------------------------------------
-// ¡Debe tener 'export const' para ser importada!
+// Función para encontrar un usuario por ID de cédula
+export const findUserByIdentification = async (identification) => {
+    // Consulta la tabla 'users' para verificar si la cédula ya existe
+    const [rows] = await pool.query(
+        'SELECT id, identification, email, name, password FROM users WHERE identification = ?', 
+        [identification]
+    );
+    return rows[0]; // Retorna el usuario si existe, o undefined/null
+};
+
+// Función para encontrar un usuario por email (necesario para el Login)
 export const findUserByEmail = async (email) => {
-    try {
-        const [rows] = await pool.query('SELECT id, name, email, password FROM users WHERE email = ?', [email]);
-        return rows[0]; 
-    } catch (error) {
-        console.error('Error en findUserByEmail:', error);
-        throw error; 
-    }
+    const [rows] = await pool.query(
+        'SELECT id, identification, email, name, password FROM users WHERE email = ?',
+        [email]
+    );
+    return rows[0];
 };
 
-// -------------------------------------------------------------------
-// 2. Crear un nuevo usuario (usada para Registro)
-// -------------------------------------------------------------------
-// ¡Debe tener 'export const' para ser importada!
-export const createUser = async (name, email, hashedPassword) => {
-    try {
-        const query = 'INSERT INTO users (name, email, password) VALUES (?, ?, ?)';
-        const [result] = await pool.query(query, [name, email, hashedPassword]);
-        
-        return { id: result.insertId, name, email }; 
-    } catch (error) {
-        console.error('Error en createUser:', error);
-        throw error;
-    }
+// Función para crear un nuevo usuario
+export const createUser = async ({ name, identification, email, password }) => {
+    // 1. Encriptar la contraseña (seguridad)
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 2. Ejecutar la consulta de inserción
+    const [result] = await pool.query(
+        'INSERT INTO users (name, identification, email, password) VALUES (?, ?, ?, ?)',
+        [name, identification, email, hashedPassword]
+    );
+
+    // 3. Retornar el ID del usuario creado
+    return result.insertId;
 };
+
+// Exportar bcrypt para uso en el controlador de Login
+export { bcrypt };

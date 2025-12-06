@@ -19,6 +19,33 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
+
+// Nueva función para buscar un usuario por email
+export const getUserByEmail = async (email) => {
+    let connection;
+    try {
+        // Obtenemos una conexión del pool
+        connection = await pool.getConnection();
+        
+        // La consulta SQL busca el usuario por email
+        const [rows] = await connection.execute(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+        
+        // Devuelve el primer usuario encontrado (debería ser único) o undefined
+        return rows[0];
+
+    } catch (error) {
+        console.error('Error al obtener usuario por email:', error);
+        throw new Error('Error al buscar usuario en la base de datos.');
+    } finally {
+        // CRÍTICO: Devolver la conexión al pool
+        if (connection) connection.release();
+    }
+};
+
+
 export const testConnection = async () => {
     try {
         await pool.getConnection();
